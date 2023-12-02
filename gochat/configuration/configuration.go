@@ -27,7 +27,6 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
-	"github.com/stefan-chivu/gochat/gochat/room"
 )
 
 // ServerConfig contains all of the configurables and tunables for various components of the gateway.
@@ -42,8 +41,6 @@ type ServerConfig struct {
 	Log zerolog.Logger
 	// LogCaller will add the file path and line number to all log messages.
 	LogCaller bool `json:"log_caller"`
-	// Rooms represent the rooms currently available on the server
-	Rooms []*room.Room
 	// ServerAddress is the address where other cluster members can reach the gochat server.
 	// The first assigned IP address is used if the parameter is not provided.
 	ServerAddress string `json:"server_address"`

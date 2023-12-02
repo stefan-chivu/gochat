@@ -1,4 +1,4 @@
-package gochat
+package main
 
 import (
 	"flag"
@@ -11,9 +11,10 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stefan-chivu/gochat/gochat/configuration"
+	server "github.com/stefan-chivu/gochat/gochat/server"
 )
 
-func Main() {
+func main() {
 	config := configuration.NewDefaultServerConfig()
 
 	err := ParseArgs(config)
@@ -22,8 +23,8 @@ func Main() {
 		os.Exit(1)
 	}
 
-	if PrintVersion {
-		fmt.Printf("gochat version %s (Built %s)\n", Version, Buildtime)
+	if server.PrintVersion {
+		fmt.Printf("gochat version %s (Built %s)\n", server.Version, server.Buildtime)
 		os.Exit(0)
 	}
 
@@ -50,9 +51,9 @@ func Main() {
 		}
 	}
 
-	opts := new(StartOpts)
+	opts := new(server.StartOpts)
 
-	server := NewServer(config)
+	server := server.NewServer(config)
 	err = server.StartServer(opts) // run forever (or until an error happens)
 	if err != nil {
 		config.Log.Error().Msgf("Gateway exited with an error: %v", err)
@@ -65,9 +66,9 @@ func Main() {
 // any calls to flag before calling ParseArgs.
 func ParseArgs(config *configuration.ServerConfig) error {
 	// Execution parameters
-	flag.StringVar(&CPUProfile, "CPUProfile", "", "Specify the name of the file for writing CPU profiling to enable the CPU profiling")
-	flag.BoolVar(&PProf, "PProf", false, "Enable the pprof debugging web server")
-	flag.BoolVar(&PrintVersion, "version", false, "Print version and exit")
+	flag.StringVar(&server.CPUProfile, "CPUProfile", "", "Specify the name of the file for writing CPU profiling to enable the CPU profiling")
+	flag.BoolVar(&server.PProf, "PProf", false, "Enable the pprof debugging web server")
+	flag.BoolVar(&server.PrintVersion, "version", false, "Print version and exit")
 
 	// Configuration Parameters
 	configFile := flag.String("ConfigFile", "", "Path of the server configuration JSON file.")
@@ -103,7 +104,7 @@ func SetupDebugging(config *configuration.ServerConfig) (func(), error) {
 		config.Log = config.Log.With().Caller().Logger()
 	}
 
-	if PProf {
+	if server.PProf {
 		port := ":6161"
 		go func() {
 			if err := http.ListenAndServe(port, nil); err != nil {
@@ -113,10 +114,10 @@ func SetupDebugging(config *configuration.ServerConfig) (func(), error) {
 		}()
 	}
 
-	if CPUProfile != "" {
-		f, err := os.Create(CPUProfile)
+	if server.CPUProfile != "" {
+		f, err := os.Create(server.CPUProfile)
 		if err != nil {
-			config.Log.Error().Err(err).Msgf("Unable to create CPU profiling file %s", CPUProfile)
+			config.Log.Error().Err(err).Msgf("Unable to create CPU profiling file %s", server.CPUProfile)
 			return nil, err
 		}
 		if err = pprof.StartCPUProfile(f); err != nil {
