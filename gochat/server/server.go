@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gorilla/websocket"
 	"github.com/stefan-chivu/gochat/gochat/configuration"
 	"github.com/stefan-chivu/gochat/gochat/room"
 )
@@ -38,7 +39,8 @@ type ServerOpts struct {
 type Server struct {
 	Config *configuration.ServerConfig
 	// Rooms represent the rooms currently available on the server
-	Rooms map[string]*room.Room
+	Rooms   map[string]*room.Room
+	Clients map[*websocket.Conn]string
 }
 
 func NewServer(config *configuration.ServerConfig) *Server {
@@ -57,9 +59,10 @@ func (s *Server) StartServer(opts *StartOpts) error {
 		// TODO: Enable TLS
 		s.Config.Log.Info().Msg("Received TLS Certs")
 	}
-	http.HandleFunc("/", home)
+	http.HandleFunc("/", s.home)
 	http.HandleFunc("/rooms/create", s.createRoom)
-	http.HandleFunc("/rooms/get-all", s.getRooms)
+	http.HandleFunc("/rooms/get-rooms", s.getRooms)
+	http.HandleFunc("/get-users", s.getActiveUsers)
 
 	server := &http.Server{Addr: ":8080"}
 
