@@ -31,13 +31,13 @@ type Room struct {
 	clients map[*websocket.Conn]string
 
 	// the maximum capacity of a room
-	capacity int
+	Capacity int `json:"capacity"`
 }
 
 func NewRoom(name string, capacity int) *Room {
 	return &Room{
 		name:     name,
-		capacity: capacity,
+		Capacity: capacity,
 		clients:  make(map[*websocket.Conn]string),
 	}
 }
@@ -77,8 +77,8 @@ func (r *Room) RemoveClient(ws *websocket.Conn) {
 }
 
 func (r *Room) HandleConnection(w http.ResponseWriter, req *http.Request) {
-	if len(r.clients) >= r.capacity {
-		http.Error(w, fmt.Sprintf("Room '%s' is full; Max capacity: %d", r.name, r.capacity), http.StatusNotAcceptable)
+	if len(r.clients) >= r.Capacity {
+		http.Error(w, fmt.Sprintf("Room '%s' is full; Max capacity: %d", r.name, r.Capacity), http.StatusNotAcceptable)
 		return
 	}
 
