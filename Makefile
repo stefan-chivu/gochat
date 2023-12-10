@@ -57,3 +57,10 @@ tls:
 update:
 	go mod tidy
 	go get -u ./...
+
+# build-client-deps: clean-client
+# 	npm whatever
+
+run-client: # build-client
+	# ./gochat-webclient
+	npm --prefix `pwd`/webclient start 
