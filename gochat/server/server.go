@@ -9,7 +9,10 @@ import (
 	"syscall"
 
 	"github.com/gorilla/websocket"
+	"github.com/rs/cors"
+	"github.com/stefan-chivu/gochat/gochat/auth"
 	"github.com/stefan-chivu/gochat/gochat/configuration"
+	"github.com/stefan-chivu/gochat/gochat/models"
 	"github.com/stefan-chivu/gochat/gochat/room"
 )
 
@@ -38,19 +41,48 @@ type ServerOpts struct {
 
 type Server struct {
 	Config *configuration.ServerConfig
+
+	Mux *http.ServeMux
 	// Rooms represent the rooms currently available on the server
-	Rooms   map[string]*room.Room
+	Rooms map[string]*room.Room
+
 	Clients map[*websocket.Conn]string
+	// TODO Replace string with User at some point
+	Messages map[string]([]*models.Message)
 }
 
 func NewServer(config *configuration.ServerConfig) *Server {
 	// TODO: Implement database fetch for existing rooms
 	// rooms := db.getRooms()
+
+	auth.NewCookieStore()
+
 	rooms := make(map[string]*room.Room)
-	return &Server{
-		Config: config,
-		Rooms:  rooms,
+
+	if len(rooms) == 0 {
+		rooms["Global"] = room.NewRoom("Global", 50)
+		http.HandleFunc("/rooms/Global", rooms["Global"].HandleRoomConnection)
+		http.HandleFunc("/rooms/Global/messages", rooms["Global"].GetRoomMessages)
 	}
+
+	messages := make(map[string][]*models.Message)
+	return &Server{
+		Config:   config,
+		Rooms:    rooms,
+		Messages: messages,
+	}
+}
+
+func (s *Server) setupRoutes(mux *http.ServeMux) {
+	http.HandleFunc("/rooms/create", s.createRoom)
+	http.HandleFunc("/rooms", s.getRooms)
+	http.HandleFunc("/users/login", auth.Login)
+	http.HandleFunc("/users", s.getUsers)
+	// http.HandleFunc("/users/register", auth.)
+	http.HandleFunc("/messages", s.getUserMessages)
+
+	http.HandleFunc("/", s.home)
+	// http.HandleFunc("/ws", serveWs)
 }
 
 func (s *Server) StartServer(opts *StartOpts) error {
@@ -59,18 +91,22 @@ func (s *Server) StartServer(opts *StartOpts) error {
 		// TODO: Enable TLS
 		s.Config.Log.Info().Msg("Received TLS Certs")
 	}
-	http.HandleFunc("/", s.home)
-	http.HandleFunc("/rooms/create", s.createRoom)
-	http.HandleFunc("/rooms/get-rooms", s.getRooms)
-	http.HandleFunc("/get-users", s.getActiveUsers)
+	s.Mux = http.NewServeMux()
 
-	server := &http.Server{Addr: ":8080"}
+	s.setupRoutes(s.Mux)
+
+	c := cors.Default()
+
+	// Wrap the mux with the CORS middleware
+	handler := c.Handler(http.DefaultServeMux)
+
+	server := &http.Server{Addr: s.Config.ServerListenAddress, Handler: handler}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
 	go func() {
-		log.Printf("Starting server on %s\n", server.Addr)
+		log.Printf("Starting server on %s\n", s.Config.ServerListenAddress)
 		if err := server.ListenAndServe(); err != nil {
 			log.Printf("error starting server: %s", err)
 			stop <- shutdown
