@@ -1,0 +1,27 @@
+.RoomGrid {
+    background-color: lightgray;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    padding-top: 50px;
+    padding-bottom: 50px;
+    padding-left: 100px;
+    padding-right: 100px;
+}
+
+.grid-item {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rounded-rectangle {
+    width: 100%;
+    padding: 16px;
+    border-radius: 10px;
+    background-color: #e0e0e0;
+    /* Set your desired background color */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Add more styling as needed */
