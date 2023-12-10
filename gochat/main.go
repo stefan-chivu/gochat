@@ -74,10 +74,7 @@ func ParseArgs(config *configuration.ServerConfig) error {
 	configFile := flag.String("ConfigFile", "", "Path of the server configuration JSON file.")
 
 	flag.BoolVar(&config.LogCaller, "LogCaller", false, "Include the file and line number with each log message")
-	flag.StringVar(&config.ServerAddress, "ServerAddress", "", "The IP address where other cluster members can reach the gNMI server. The first assigned IP address is used if the parameter is not provided")
-	flag.IntVar(&config.ServerPort, "ServerPort", 0, "The TCP port where other cluster members can reach the gNMI server. ServerListenPort is used if the parameter is not provided")
-	flag.StringVar(&config.ServerListenAddress, "ServerListenAddress", "0.0.0.0", "The interface IP address the gNMI server will listen on")
-	flag.IntVar(&config.ServerListenPort, "ServerListenPort", 9339, "TCP port to run the gNMI server on")
+	flag.StringVar(&config.ServerListenAddress, "ServerListenAddress", "0.0.0.0:8080", "The interface IP address and port the gochat server will listen on")
 	flag.StringVar(&config.ServerTLSCert, "ServerTLSCert", "", "File containing the gNMI server TLS certificate (required to enable the gNMI server)")
 	flag.StringVar(&config.ServerTLSKey, "ServerTLSKey", "", "File containing the gNMI server TLS key (required to enable the gNMI server)")
 	flag.Parse()
@@ -89,7 +86,7 @@ func ParseArgs(config *configuration.ServerConfig) error {
 		}
 	}
 
-	err := envconfig.Process("gateway", config)
+	err := envconfig.Process("GOCHAT", config)
 	if err != nil {
 		return fmt.Errorf("failed to read environment variable configuration: %v", err)
 	}
