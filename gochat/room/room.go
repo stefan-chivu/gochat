@@ -28,31 +28,36 @@ var upgrader = &websocket.Upgrader{
 type Room struct {
 	mu sync.Mutex
 
-	name string
+	Name string
 
 	// clients holds all current clients in this room.
-	clients map[*websocket.Conn]string
+	Clients map[*websocket.Conn]string
 
 	// the maximum capacity of a room
-	Capacity int `json:"capacity"`
+	Capacity int
 
 	Messages []*models.Message
 
 	forward chan *models.Message
 }
 
+type RoomInfo struct {
+	Capacity    int
+	ClientCount int
+}
+
 func NewRoom(name string, capacity int) *Room {
 	return &Room{
-		name:     name,
+		Name:     name,
 		Capacity: capacity,
-		clients:  make(map[*websocket.Conn]string),
+		Clients:  make(map[*websocket.Conn]string),
 		Messages: make([]*models.Message, 0),
 		forward:  make(chan *models.Message),
 	}
 }
 
 func (r *Room) broadcast(msg *models.Message) {
-	for client := range r.clients {
+	for client := range r.Clients {
 		go func(ws *websocket.Conn) {
 			r.mu.Lock()
 			if err := ws.WriteMessage(websocket.TextMessage, []byte(msg.Content)); err != nil {
@@ -71,13 +76,13 @@ func (r *Room) readLoop(ws *websocket.Conn) {
 				continue
 			}
 
-			if _, ok := r.clients[ws]; ok {
+			if _, ok := r.Clients[ws]; ok {
 				if websocket.IsCloseError(err, websocket.CloseGoingAway) {
-					r.handleClose(ws, fmt.Sprintf("[ %s ] %s is going away", r.name, r.clients[ws]))
+					r.handleClose(ws, fmt.Sprintf("[ %s ] %s is going away", r.Name, r.Clients[ws]))
 					continue
 				}
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseAbnormalClosure) {
-					r.handleClose(ws, fmt.Sprintf("[ %s ] %s closed unexpectedly", r.name, r.clients[ws]))
+					r.handleClose(ws, fmt.Sprintf("[ %s ] %s closed unexpectedly", r.Name, r.Clients[ws]))
 					continue
 				}
 			}
@@ -86,10 +91,10 @@ func (r *Room) readLoop(ws *websocket.Conn) {
 			continue // break????
 		}
 
-		log.Default().Printf("[ %s ] received message: [ %s : %s ]", r.name, r.clients[ws], string(buff))
+		log.Default().Printf("[ %s ] received message: [ %s : %s ]", r.Name, r.Clients[ws], string(buff))
 
 		r.forward <- (&models.Message{
-			Username:  r.clients[ws],
+			Username:  r.Clients[ws],
 			Content:   string(buff),
 			Timestamp: time.Now().UTC(),
 		})
@@ -97,16 +102,16 @@ func (r *Room) readLoop(ws *websocket.Conn) {
 }
 
 func (r *Room) GetClients() map[*websocket.Conn]string {
-	return r.clients
+	return r.Clients
 }
 
 func (r *Room) RemoveClient(ws *websocket.Conn) {
-	delete(r.clients, ws)
+	delete(r.Clients, ws)
 }
 
 func (r *Room) HandleRoomConnection(w http.ResponseWriter, req *http.Request) {
-	if len(r.clients) >= r.Capacity {
-		http.Error(w, fmt.Sprintf("Room '%s' is full; Max capacity: %d", r.name, r.Capacity), http.StatusNotAcceptable)
+	if len(r.Clients) >= r.Capacity {
+		http.Error(w, fmt.Sprintf("Room '%s' is full; Max capacity: %d", r.Name, r.Capacity), http.StatusNotAcceptable)
 		return
 	}
 
@@ -131,10 +136,10 @@ func (r *Room) HandleRoomConnection(w http.ResponseWriter, req *http.Request) {
 	}
 
 	r.mu.Lock()
-	r.clients[socket] = username
+	r.Clients[socket] = username
 	r.mu.Unlock()
 
-	log.Default().Println("Connected new client from: " + req.RemoteAddr + "; Username: " + username + "; Room: " + r.name)
+	log.Default().Println("Connected new client from: " + req.RemoteAddr + "; Username: " + username + "; Room: " + r.Name)
 
 	go r.handleRoomMsg()
 	r.readLoop(socket)
@@ -144,7 +149,7 @@ func (r *Room) handleRoomMsg() {
 	for {
 		r.mu.Lock()
 		msg := <-r.forward
-		log.Default().Printf("[ %s ] %s : %s", r.name, msg.Username, msg.Content)
+		log.Default().Printf("[ %s ] %s : %s", r.Name, msg.Username, msg.Content)
 		r.Messages = append(r.Messages, msg)
 		//TOTO db.syncMsg()
 		r.broadcast(msg)
@@ -170,5 +175,5 @@ func (r *Room) GetRoomMessages(w http.ResponseWriter, req *http.Request) {
 
 func (r *Room) handleClose(ws *websocket.Conn, message string) {
 	log.Default().Print(message)
-	delete(r.clients, ws)
+	delete(r.Clients, ws)
 }
