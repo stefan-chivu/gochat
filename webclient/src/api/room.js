@@ -10,7 +10,7 @@ let connectRoom = (cb, roomName, username) => {
 
     roomSocket.onmessage = msg => {
         console.log(msg);
-        cb(msg);
+        cb(JSON.parse(msg.data));
     };
 
     roomSocket.onclose = event => {
@@ -22,11 +22,9 @@ let connectRoom = (cb, roomName, username) => {
     };
 };
 
-let getRoomMessages = () => { return []; }
-
 let sendMsg = msg => {
     console.log("sending msg: ", msg);
     roomSocket.send(msg);
 };
 
-export { connectRoom, getRoomMessages, sendMsg };
+export { connectRoom, sendMsg };

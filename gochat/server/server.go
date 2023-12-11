@@ -62,6 +62,7 @@ func NewServer(config *configuration.ServerConfig) *Server {
 	if len(rooms) == 0 {
 		rooms["Global"] = room.NewRoom("Global", 50)
 		http.HandleFunc("/rooms/Global", rooms["Global"].HandleRoomConnection)
+		// http.HandleFunc("/rooms/Global", rooms["Global"].ServeWs)
 		http.HandleFunc("/rooms/Global/messages", rooms["Global"].GetRoomMessages)
 	}
 

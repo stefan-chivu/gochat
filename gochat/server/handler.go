@@ -24,48 +24,12 @@ var upgrader = &websocket.Upgrader{
 	}}
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello world from my server!")
-
-	// if err := r.ParseForm(); err != nil {
-	// 	http.Error(w, "Parse form failed", http.StatusBadRequest)
-	// 	return
-	// }
-
-	// username := r.Form.Get("username")
-
-	// // TODO better valid username check
-	// if username == "" {
-	// 	// error case
-	// 	http.Error(w, "Invalid username", http.StatusBadRequest)
-	// 	return
-	// }
-
-	// socket, err := upgrader.Upgrade(w, r, nil)
-	// if err != nil {
-	// 	log.Default().Print("Websocket upgrade failed:", err)
-	// 	return
-	// }
-
-	// s.Clients[socket] = username
-
-	// log.Default().Println("Connected new client from: " + r.RemoteAddr + "; Username: " + username + "; Room: " + r.name)
+	fmt.Fprintf(w, "{ \"msg\": \"Hello world from my server!\" }")
 }
 
-// TODO: make something like a private room
-func (s *Server) handlePrivateMessage(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello world from my server!")
-
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Parse form failed", http.StatusBadRequest)
-		return
-	}
-
-	username := r.Form.Get("username")
-
-	// TODO better valid username check
-	if username == "" {
-		// error case
-		http.Error(w, "Invalid username", http.StatusBadRequest)
+func (s *Server) getUserMessages(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -74,11 +38,19 @@ func (s *Server) handlePrivateMessage(w http.ResponseWriter, r *http.Request) {
 		log.Default().Print("Websocket upgrade failed:", err)
 		return
 	}
+	user := s.Clients[socket]
+	messageList := s.Messages[user]
+	responseData, err := json.Marshal(messageList)
 
-	s.Clients[socket] = username
+	if err != nil {
+		http.Error(w, "Message list JSON marshalling failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(responseData)
 }
 
-func (s *Server) getActiveUsers(w http.ResponseWriter, r *http.Request) {
+func (s *Server) getUsers(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -143,20 +115,27 @@ func (s *Server) createRoom(w http.ResponseWriter, r *http.Request) {
 
 	s.Rooms[roomName] = room.NewRoom(roomName, capacity)
 	http.HandleFunc("/rooms/"+roomName, s.Rooms[roomName].HandleRoomConnection)
-	http.HandleFunc("/rooms/"+roomName+"/get-messages", s.Rooms[roomName].GetRoomMessages)
+	// http.HandleFunc("/rooms/"+roomName, s.Rooms[roomName].ServeWs)
+	http.HandleFunc("/rooms/"+roomName+"/messages", s.Rooms[roomName].GetRoomMessages)
 	s.Config.Log.Info().Msgf("Room '" + roomName + "' has been created")
 
 	// TODO: save room data to DB
 }
 
 func (s *Server) getRooms(w http.ResponseWriter, r *http.Request) {
-
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	responseData, err := json.Marshal(s.Rooms)
+	roomData := map[string]*room.RoomInfo{}
+	for name, r := range s.Rooms {
+		roomData[name] = &room.RoomInfo{
+			Capacity:    r.Capacity,
+			ClientCount: len(r.Clients),
+		}
+	}
+	responseData, err := json.Marshal(roomData)
 
 	if err != nil {
 		http.Error(w, "Room data JSON marshalling failed", http.StatusInternalServerError)
