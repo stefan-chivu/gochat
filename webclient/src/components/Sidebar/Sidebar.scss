@@ -1,0 +1,36 @@
+.Sidebar {
+    width: 200px;
+    /* Set the width of the sidebar as needed */
+    height: 100%;
+    background-color: #f0f0f0;
+    position: fixed;
+    left: 0;
+    top: 0;
+    padding: 20px;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.Sidebar h2 {
+    margin-bottom: 10px;
+}
+
+.Sidebar ul {
+    list-style-type: none;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.Sidebar li {
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+
+.rounded-rectangle {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    background-color: hsl(189, 38%, 71%);
+    /* Set your desired background color */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
