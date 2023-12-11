@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,100 +57,11 @@ func NewRoom(name string, capacity int) *Room {
 	}
 }
 
-// func Upgrade(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
-// 	ws, err := upgrader.Upgrade(w, r, nil)
-// 	if err != nil {
-// 		log.Println(err)
-// 		return ws, err
-// 	}
-// 	return ws, nil
-// }
+func NewPrivateChat(username1 string, username2 string) *Room {
+	chat := NewRoom("Private_"+username1+"_"+username2, 2)
 
-// func (r *Room) reader(conn *websocket.Conn) {
-// 	for {
-// 		messageType, buff, err := conn.ReadMessage()
-// 		if err != nil {
-// 			log.Println(err)
-// 			continue
-// 		}
-
-// 		// fmt.Println(string(p))
-// 		msg := &models.Message{
-// 			Username:  r.Clients[conn],
-// 			Content:   string(buff),
-// 			Timestamp: time.Now().UTC(),
-// 		}
-
-// 		msgData, err := json.Marshal(msg)
-
-// 		if err := conn.WriteMessage(messageType, msgData); err != nil {
-// 			log.Println(err)
-// 			continue
-// 		}
-// 	}
-// }
-
-// func (r *Room) writer() {
-// 	for {
-// 		fmt.Println("Sending")
-// 		for conn, _ := range r.Clients {
-// 			messageType, buff, err := conn.NextReader()
-// 			if err != nil {
-// 				fmt.Println(err)
-// 				continue
-// 			}
-// 			w, err := conn.NextWriter(messageType)
-// 			if err != nil {
-// 				fmt.Println(err)
-// 				continue
-// 			}
-// 			if _, err := io.Copy(w, buff); err != nil {
-// 				fmt.Println(err)
-// 				continue
-// 			}
-// 			if err := w.Close(); err != nil {
-// 				fmt.Println(err)
-// 				continue
-// 			}
-// 		}
-// 	}
-// }
-
-// func (r *Room) ServeWs(w http.ResponseWriter, req *http.Request) {
-// 	ws, err := Upgrade(w, req)
-
-// 	if err != nil {
-// 		fmt.Fprintf(w, "%+V\n", err)
-// 	}
-
-// 	if len(r.Clients) >= r.Capacity {
-// 		http.Error(w, fmt.Sprintf("Room '%s' is full; Max capacity: %d", r.Name, r.Capacity), http.StatusNotAcceptable)
-// 		return
-// 	}
-
-// 	if err := req.ParseForm(); err != nil {
-// 		http.Error(w, "Parse form failed", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	username := req.Form.Get("username")
-
-// 	// TODO better valid username check
-// 	if username == "" {
-// 		// error case
-// 		http.Error(w, "Invalid username", http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	r.mu.Lock()
-// 	r.Clients[ws] = username
-// 	r.mu.Unlock()
-
-// 	log.Default().Println("Connected new client from: " + req.RemoteAddr + "; Username: " + username + "; Room: " + r.Name)
-
-// 	go r.writer()
-// 	r.reader(ws)
-// }
+	return chat
+}
 
 func (r *Room) broadcast(msg []byte) {
 	for ws := range r.Clients {
@@ -220,6 +132,13 @@ func (r *Room) HandleRoomConnection(w http.ResponseWriter, req *http.Request) {
 
 	username := req.Form.Get("username")
 
+	if strings.Contains(r.Name, "Private") {
+		if !strings.Contains(r.Name, username) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+	}
+
 	// TODO better valid username check
 	if username == "" {
 		// error case
@@ -258,6 +177,22 @@ func (r *Room) handleRoomMsg() {
 		}
 		r.broadcast(msgData)
 	}
+}
+
+func (r *Room) GetRoomUsers(w http.ResponseWriter, req *http.Request) {
+	usernameList := []string{}
+
+	for _, username := range r.Clients {
+		usernameList = append(usernameList, username)
+	}
+	responseData, err := json.Marshal(usernameList)
+
+	if err != nil {
+		http.Error(w, "Room users JSON marshalling failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(responseData)
 }
 
 func (r *Room) GetRoomMessages(w http.ResponseWriter, req *http.Request) {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/gorilla/websocket"
@@ -40,6 +41,8 @@ type ServerOpts struct {
 }
 
 type Server struct {
+	mu sync.Mutex
+
 	Config *configuration.ServerConfig
 
 	Mux *http.ServeMux
@@ -71,10 +74,12 @@ func NewServer(config *configuration.ServerConfig) *Server {
 		Config:   config,
 		Rooms:    rooms,
 		Messages: messages,
+		Clients:  make(map[*websocket.Conn]string),
 	}
 }
 
 func (s *Server) setupRoutes(mux *http.ServeMux) {
+	http.HandleFunc("/chat/create", s.createPrivateChat)
 	http.HandleFunc("/rooms/create", s.createRoom)
 	http.HandleFunc("/rooms", s.getRooms)
 	http.HandleFunc("/users/login", auth.Login)

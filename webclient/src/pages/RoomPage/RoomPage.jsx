@@ -1,6 +1,8 @@
 import React, { Component } from "react";
 import Header from '../../components/Header/Header';
 import ChatInput from '../../components/ChatInput/ChatInput';
+import Sidebar from "../../components/Sidebar/Sidebar";
+
 import { sendMsg, connectRoom } from '../../api/room';
 
 class RoomPage extends Component {
@@ -79,14 +81,16 @@ class RoomPage extends Component {
         return (
             <div className='RoomPage'>
                 <Header />
+                <Sidebar username={this.state.username} />
+
                 <h2>Room Global</h2>
-                <div className="Message">
-                    {this.state.roomHistory.map(msg => {
-                        return (<div className="Message">
+                {this.state.roomHistory.map(msg => {
+                    return (
+                        <div className="Message">
                             [{msg.timestamp}] {msg.username}: {msg.content}
-                        </div>)
-                    })}
-                </div>
+                        </div>
+                    )
+                })}
                 <ChatInput send={this.send} />
             </div>
         );
